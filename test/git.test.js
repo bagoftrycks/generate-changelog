@@ -39,7 +39,20 @@ describe('git', function () {
       });
     });
 
-    it('errs if there are no commits yet', function () {
+    it('uses custom revision range if `-t` / `--tag` option was used', function () {
+      Sinon.stub(CP, 'execAsync')
+        .onFirstCall().returns(Bluebird.resolve(VALID_COMMITS));
+
+      var tagRange = 'abcdef01..23456789';
+
+      return Git.getCommits({ tag: tagRange })
+      .then(function () {
+        CP.execAsync.firstCall.calledWithMatch(tagRange);
+        CP.execAsync.restore();
+      });
+    });
+
+    it('errors if there are no commits yet', function () {
       Sinon.stub(CP, 'execAsync')
         .onFirstCall().returns(Bluebird.resolve('v1.2.3'))
         .onSecondCall().returns(Bluebird.reject());
@@ -63,7 +76,7 @@ describe('git', function () {
 
       return Git.getCommits()
       .then(function (commits) {
-        Expect(commits).to.have.length(1);
+        Expect(commits).to.have.length(5);
         Expect(commits[0]).to.have.property('type');
         Expect(commits[0]).to.have.property('category');
         Expect(commits[0]).to.have.property('subject');
@@ -79,6 +92,18 @@ describe('git', function () {
       return Git.getCommits()
       .then(function (commits) {
         Expect(commits).to.have.length(0);
+        CP.execAsync.restore();
+      });
+    });
+
+    it('skips any excluded commit types', function () {
+      Sinon.stub(CP, 'execAsync')
+        .onFirstCall().returns(Bluebird.resolve('v1.2.3'))
+        .onSecondCall().returns(Bluebird.resolve(VALID_COMMITS));
+
+      return Git.getCommits({ exclude: ['chore', 'style'] })
+      .then(function (commits) {
+        Expect(commits).to.have.length(3);
         CP.execAsync.restore();
       });
     });
